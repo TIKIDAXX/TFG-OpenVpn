@@ -1,6 +1,6 @@
 # 🔐 TFG-OpenVPN — Infraestructura VPN Empresarial con Raspberry Pi 5
 
-> **Trabajo de Fin de Grado** · Ciclo Formativo de Grado Superior en Administración de Sistemas Informáticos en Red (ASIR)
+> **Trabajo de Fin de Grado** · Ciclo Formativo de Grado Superior en Administración de Sistemas Informáticos en Red (ASIR) · 2º Curso
 
 ---
 
@@ -8,21 +8,26 @@
 
 Este TFG consiste en el diseño, implementación y documentación de una **infraestructura VPN empresarial completa** desplegada sobre una **Raspberry Pi 5**, utilizando exclusivamente **software libre y gratuito**.
 
-El objetivo es simular un entorno real de teletrabajo corporativo, con gestión centralizada de usuarios a través de un **Active Directory externo (Samba AD/DC)**, monitorización avanzada, automatización mediante un bot de Telegram y un panel web de administración propio.
+El sistema simula un entorno real de teletrabajo corporativo con:
+- Autenticación centralizada vía **Active Directory externo (Samba AD/DC)** con control de acceso a recursos de red por grupos
+- **Portal web de administración** propio con Grafana embebido, gestión de usuarios y logs
+- **Bot de Telegram** como agente autónomo de seguridad y alertas críticas, con MFA de doble chat para comandos administrativos
+- Monitorización avanzada con **Prometheus + Grafana**
+- Todo orquestado con **Docker y Docker Compose**
 
-Todo el stack se orquesta con **Docker y Docker Compose**, garantizando modularidad, portabilidad y facilidad de mantenimiento.
+> ⚠️ Se eligió **OpenVPN** frente a WireGuard por su integración nativa con LDAP/Active Directory, permitiendo herencia de políticas de grupos AD: control de acceso a carpetas compartidas, recursos de red y GPOs. WireGuard no ofrece esta integración de forma nativa.
 
 ---
 
 ## 🎯 Objetivos
 
-- Implementar una solución VPN segura y funcional con **OpenVPN Access Server**
-- Integrar autenticación de usuarios con **Active Directory / LDAP**
-- Desarrollar un **panel web de administración** propio (PHP + MySQL)
+- Implementar una solución VPN segura con **OpenVPN Community Edition** integrada con AD/LDAP
+- Centralizar autenticación y control de acceso mediante **Active Directory externo**
+- Desarrollar un **portal web de administración** (PHP + MySQL) con Grafana embebido
 - Monitorizar el sistema con **Prometheus + Grafana**
-- Automatizar tareas administrativas mediante un **bot de Telegram** en Python
-- Aplicar medidas de **seguridad** con iptables, HTTPS y segmentación de red
-- Demostrar la **viabilidad energética** y económica de Raspberry Pi frente a servidores x86
+- Desplegar un **bot de Telegram** como agente autónomo de alertas críticas con comandos protegidos por **MFA de doble chat**
+- Aplicar **seguridad en capas**: iptables, Fail2Ban, HTTPS y segmentación de red
+- Demostrar la **viabilidad energética** de Raspberry Pi frente a servidores x86
 
 ---
 
@@ -34,49 +39,80 @@ Todo el stack se orquesta con **Docker y Docker Compose**, garantizando modulari
                  │
                  ▼
        ┌───────────────────────┐
-       │ OpenVPN Access Server │  ← Puerto 1194/UDP + 443/TCP
+       │     OpenVPN CE        │  ← Puerto 1194/UDP + 443/TCP
        │      (Pi5, Docker)    │
        └─────────┬─────────────┘
+                 │  Autenticación LDAP
+                 ▼
+       ┌─────────────────────┐
+       │    AD/DC Externo    │  ← Máquina separada
+       │    Samba AD/DC      │     Grupos, recursos, GPOs
+       │    Puerto 389/636   │
+       └─────────────────────┘
                  │
-       ┌─────────┴──────────────┐
-       ▼                        ▼
-  Panel Web               Prometheus + Grafana
-(PHP + MySQL)              (Docker, Pi5)
-  Puerto 80/443             Puerto 9090/3000
+       ┌─────────┴──────────────────┐
+       ▼                            ▼
+  Portal Web Admin            Prometheus + Grafana
+  (PHP + MySQL)                (Docker, Pi5)
+  - Grafana embebido            Puerto 9090 / 3000
+  - Crear/revocar usuarios
+  - Logs centralizados
+  - Estado servicios
        │
        ▼
   Bot Telegram (Python)
-  (Docker, Pi5)
+  ┌─────────────────────────────────┐
+  │  CHAT 1 — MFA / Códigos OTP    │ ← Canal privado admin
+  │  CHAT 2 — Alertas + Comandos   │ ← Canal operacional
+  └─────────────────────────────────┘
        │
        ▼
-┌─────────────────────┐
-│   AD/DC Externo     │  ← Máquina separada
-│  Samba / Active     │     Puerto 389/636 (LDAP/S)
-│  Directory          │
-└─────────────────────┘
+  Fail2Ban (Docker)
+  - Bloqueo automático de IPs
+  - Notificación al bot
 ```
 
-**Principios de diseño:**
-- AD/DC **fuera de la Pi** → simula entorno empresarial real
-- Un contenedor por servicio → máxima modularidad
-- Red interna Docker separada → segmentación y seguridad
-- Todos los servicios con HTTPS → comunicaciones cifradas
+---
+
+## 🔐 Flujo MFA del Bot de Telegram
+
+```
+Admin escribe /revocar usuario123  →  Chat 2 (principal)
+                    │
+                    ▼
+     Bot genera código OTP (6 dígitos, expira en 90s)
+                    │
+                    ▼
+     Bot envía código  →  Chat 1 (MFA privado)
+                    │
+                    ▼
+     Admin responde con el código  →  Chat 2
+                    │
+              ┌─────┴──────┐
+           válido        inválido / expirado
+              │                │
+              ▼                ▼
+        Ejecuta acción    Cancela + registra
+        Confirma en       en logs de seguridad
+        Chat 2
+```
 
 ---
 
 ## 🛠️ Stack Tecnológico
 
-| Categoría | Tecnología | Versión | Notas |
-|-----------|-----------|---------|-------|
-| **SO Base** | Raspberry Pi OS Lite (64-bit) | Bookworm | Sin entorno gráfico |
-| **Contenedores** | Docker + Docker Compose | Latest | Orquestación completa |
-| **VPN** | OpenVPN Access Server | Community | Máx. 2 conexiones gratis |
-| **Autenticación** | Samba AD/DC + LDAP | 4.x | Servidor externo |
-| **Panel Web** | PHP + Apache + MySQL | PHP 8.x | Contenedor personalizado |
-| **Monitorización** | Prometheus + Grafana | Latest | Métricas y dashboards |
-| **Automatización** | Python + python-telegram-bot | 3.11 | Bot administrativo |
-| **Certificados SSL** | Let's Encrypt / Autofirmado | — | HTTPS en todos los servicios |
-| **Firewall** | iptables | — | Segmentación de red |
+| Categoría | Tecnología | Notas |
+|-----------|-----------|-------|
+| **SO Base** | Raspberry Pi OS Lite 64-bit (Bookworm) | Sin entorno gráfico |
+| **Contenedores** | Docker + Docker Compose | Orquestación completa |
+| **VPN** | OpenVPN Community Edition | Sin límite de conexiones |
+| **Autenticación** | Samba AD/DC + LDAP/LDAPS | Servidor externo, grupos y recursos |
+| **Portal Web** | PHP 8 + Apache + MySQL | Administración centralizada |
+| **Dashboards** | Grafana embebido en portal | Integrado, no duplicado |
+| **Métricas** | Prometheus + Node Exporter + cAdvisor | Sistema y contenedores |
+| **Bot** | Python + python-telegram-bot | Agente autónomo + MFA doble chat |
+| **Seguridad** | Fail2Ban + iptables + HTTPS | Capas de protección |
+| **Certificados** | Let's Encrypt / Autofirmado | HTTPS en todos los servicios |
 
 ---
 
@@ -84,65 +120,61 @@ Todo el stack se orquesta con **Docker y Docker Compose**, garantizando modulari
 
 ```
 TFG-OpenVPN/
-├── 📄 README.md
-├── 📄 docker-compose.yml          # Orquestación de todos los servicios
-├── 📄 .env.example                # Variables de entorno (plantilla)
-│
-├── 📂 openvpn/
+├── README.md
+├── docker-compose.yml
+├── .env.example
+├── openvpn/
 │   ├── Dockerfile
 │   ├── config/
-│   │   ├── server.conf            # Configuración OpenVPN
-│   │   └── ldap.conf              # Integración LDAP/AD
+│   │   ├── server.conf
+│   │   └── ldap.conf
 │   └── scripts/
 │       └── init.sh
-│
-├── 📂 panel-web/
+├── portal-web/
 │   ├── Dockerfile
-│   ├── src/
-│   │   ├── index.php              # Dashboard principal
-│   │   ├── vpn-status.php         # Estado de la VPN
-│   │   ├── users.php              # Gestión de usuarios
-│   │   ├── logs.php               # Visor de logs
-│   │   └── grafana-embed.php      # Embebido de dashboards
-│   ├── css/
-│   └── js/
-│
-├── 📂 monitoring/
+│   └── src/
+│       ├── index.php
+│       ├── vpn-status.php
+│       ├── users.php
+│       ├── logs.php
+│       └── grafana-embed.php
+├── monitoring/
 │   ├── prometheus/
-│   │   └── prometheus.yml         # Configuración Prometheus
+│   │   └── prometheus.yml
 │   └── grafana/
 │       ├── provisioning/
 │       └── dashboards/
-│           ├── system.json        # Métricas del sistema
-│           ├── containers.json    # Métricas de contenedores
-│           └── vpn.json           # Métricas de VPN
-│
-├── 📂 bot-telegram/
+│           ├── system.json
+│           ├── containers.json
+│           └── vpn.json
+├── bot-telegram/
 │   ├── Dockerfile
 │   ├── requirements.txt
-│   ├── bot.py                     # Bot principal
-│   ├── commands/
-│   │   ├── usuarios.py            # /crearusuario, /revocar
-│   │   ├── estado.py              # /estado, /conexiones
-│   │   └── backup.py              # /backup_now
-│   └── alerts/
-│       └── monitor.py             # Alertas automáticas
-│
-├── 📂 mysql/
-│   ├── init.sql                   # Schema de la base de datos
-│   └── backups/
-│
-├── 📂 nginx/
-│   ├── nginx.conf                 # Proxy inverso + SSL
+│   ├── bot.py
+│   ├── config.py
+│   ├── mfa/
+│   │   └── otp.py
+│   ├── alerts/
+│   │   ├── services.py
+│   │   ├── vpn.py
+│   │   └── ldap.py
+│   └── commands/
+│       ├── estado.py
+│       ├── usuarios.py
+│       └── backup.py
+├── fail2ban/
+│   ├── Dockerfile
+│   └── jail.local
+├── mysql/
+│   └── init.sql
+├── nginx/
+│   ├── nginx.conf
 │   └── certs/
-│
-├── 📂 scripts/
-│   ├── setup.sh                   # Script de instalación inicial
-│   ├── backup.sh                  # Backup automático
-│   └── firewall.sh                # Configuración iptables
-│
-└── 📂 docs/
-    ├── memoria-tfg.pdf
+├── scripts/
+│   ├── setup.sh
+│   ├── backup.sh
+│   └── firewall.sh
+└── docs/
     ├── diagramas/
     └── capturas/
 ```
@@ -151,160 +183,136 @@ TFG-OpenVPN/
 
 ## 🚀 Fases de Implementación
 
-### Fase 0 — Preparación del entorno
+> 💡 Regla de oro: cada fase debe funcionar completamente antes de pasar a la siguiente.
+
+---
+
+### FASE 0 — Preparación del entorno
+**Objetivo:** Raspberry Pi lista con Docker funcionando.
+
 - [ ] Instalar Raspberry Pi OS Lite 64-bit
-- [ ] Actualizar el sistema (`apt update && apt upgrade`)
-- [ ] Instalar Docker y Docker Compose
-- [ ] Clonar este repositorio
-- [ ] Configurar variables de entorno (`.env`)
+- [ ] Actualizar el sistema
+- [ ] Instalar Docker + Docker Compose
+- [ ] Configurar acceso SSH
+- [ ] Clonar repositorio y crear estructura de carpetas
+- [ ] Configurar archivo `.env`
 
-### Fase 1 — Integración con AD externo
-- [ ] Verificar conectividad de red Pi ↔ AD/DC
-- [ ] Configurar DNS apuntando al AD/DC
+**Entregable:** `docker compose ps` funciona sin errores.
+
+---
+
+### FASE 1 — Active Directory externo
+**Objetivo:** Verificar conectividad y autenticación LDAP desde la Pi.
+
+- [ ] Configurar red y DNS apuntando al AD/DC externo
 - [ ] Probar consulta LDAP con `ldapsearch`
-- [ ] Documentar estructura OU del directorio
+- [ ] Documentar OUs, grupos y usuarios de prueba
+- [ ] Verificar control de acceso por grupos AD
 
-### Fase 2 — VPN (OpenVPN Access Server)
-- [ ] Levantar contenedor OpenVPN AS
-- [ ] Configurar autenticación LDAP/AD
-- [ ] Generar/instalar certificados SSL
-- [ ] Probar conexión con OpenVPN Connect (cliente)
-- [ ] Validar split tunneling y rutas
-
-### Fase 3 — Panel Web
-- [ ] Levantar contenedor PHP + MySQL
-- [ ] Diseñar e implementar dashboard
-- [ ] Integrar estado de OpenVPN (API/logs)
-- [ ] Integrar iframe de Grafana
-
-### Fase 4 — Monitorización
-- [ ] Configurar Prometheus + Node Exporter
-- [ ] Añadir cAdvisor para métricas de contenedores
-- [ ] Crear dashboards en Grafana
-- [ ] Alertas en Grafana para umbrales críticos
-
-### Fase 5 — Bot de Telegram
-- [ ] Crear bot en [@BotFather](https://t.me/BotFather)
-- [ ] Implementar comandos administrativos
-- [ ] Configurar alertas automáticas
-- [ ] Probar informes diarios automáticos
-
-### Fase 6 — Seguridad
-- [ ] Configurar iptables (script `firewall.sh`)
-- [ ] Habilitar HTTPS en panel web y OpenVPN
-- [ ] Restringir acceso LDAP solo desde Pi
-- [ ] Revisar puertos expuestos (`nmap` desde exterior)
-
-### Fase 7 — Pruebas y documentación
-- [ ] Conectar 2-3 clientes reales (teletrabajo simulado)
-- [ ] Probar escenarios de fallo y recuperación
-- [ ] Medir consumo eléctrico (vatímetro)
-- [ ] Redactar memoria del TFG con capturas y diagramas
+**Entregable:** `ldapsearch` devuelve usuarios del AD correctamente.
 
 ---
 
-## ⚙️ Instalación Rápida
+### FASE 2 — VPN con OpenVPN CE + LDAP
+**Objetivo:** VPN funcional autenticando contra el AD externo.
 
-### Prerrequisitos
+- [ ] Contenedor OpenVPN Community Edition
+- [ ] Configuración server.conf y ldap.conf
+- [ ] Plugin openvpn-auth-ldap
+- [ ] Certificados SSL
+- [ ] Prueba de conexión con OpenVPN Connect
+- [ ] Verificar herencia de permisos AD
 
-```bash
-# Actualizar el sistema
-sudo apt update && sudo apt upgrade -y
-
-# Instalar Docker
-curl -fsSL https://get.docker.com | sh
-sudo usermod -aG docker $USER
-
-# Instalar Docker Compose
-sudo apt install docker-compose-plugin -y
-
-# Verificar instalación
-docker --version
-docker compose version
-```
-
-### Despliegue
-
-```bash
-# Clonar el repositorio
-git clone https://github.com/TU_USUARIO/TFG-OpenVPN.git
-cd TFG-OpenVPN
-
-# Copiar y configurar variables de entorno
-cp .env.example .env
-nano .env  # Editar con tus valores
-
-# Levantar todos los servicios
-docker compose up -d
-
-# Verificar estado
-docker compose ps
-```
-
-### Variables de entorno (`.env`)
-
-```env
-# Active Directory
-AD_HOST=192.168.1.10
-AD_PORT=389
-AD_BASE_DN=dc=empresa,dc=local
-AD_BIND_USER=cn=vpnbind,ou=serviceaccounts,dc=empresa,dc=local
-AD_BIND_PASS=TuPasswordSegura
-
-# OpenVPN
-OPENVPN_HOSTNAME=vpn.tudominio.com
-OPENVPN_PORT=1194
-
-# Panel Web
-MYSQL_ROOT_PASSWORD=rootpass
-MYSQL_DATABASE=panelvpn
-MYSQL_USER=paneluser
-MYSQL_PASSWORD=panelpass
-
-# Bot Telegram
-TELEGRAM_BOT_TOKEN=tu_token_de_botfather
-TELEGRAM_ADMIN_CHAT_ID=tu_chat_id
-
-# Grafana
-GRAFANA_ADMIN_USER=admin
-GRAFANA_ADMIN_PASSWORD=grafanapass
-```
+**Entregable:** Cliente externo se conecta con credenciales del AD.
 
 ---
 
-## 🤖 Comandos del Bot de Telegram
+### FASE 3 — Monitorización (Prometheus + Grafana)
+**Objetivo:** Métricas del sistema visibles en Grafana.
 
-| Comando | Descripción |
-|---------|-------------|
-| `/estado` | Estado general del servidor y servicios |
-| `/conexiones` | Lista de clientes VPN activos |
-| `/crearusuario <usuario>` | Crear nuevo usuario en AD y VPN |
-| `/revocar <usuario>` | Revocar acceso VPN a un usuario |
-| `/backup_now` | Ejecutar backup manual inmediato |
-| `/logs [servicio]` | Ver últimas líneas de logs |
-| `/metricas` | Resumen de CPU, RAM y disco |
-| `/ayuda` | Mostrar todos los comandos disponibles |
+- [ ] Contenedor Prometheus
+- [ ] Node Exporter (métricas Pi)
+- [ ] cAdvisor (métricas contenedores)
+- [ ] Grafana con datasource Prometheus
+- [ ] Dashboards: sistema, contenedores, VPN
+- [ ] Alertas para umbrales críticos
 
----
-
-## 📊 Métricas Monitorizadas
-
-- **Sistema:** CPU, RAM, temperatura, disco, uptime
-- **Red:** tráfico entrante/saliente, latencia
-- **Docker:** estado de contenedores, uso de recursos por servicio
-- **VPN:** conexiones activas, usuarios conectados, bytes transferidos
-- **AD/LDAP:** intentos de autenticación, errores, latencia de respuesta
+**Entregable:** Grafana muestra métricas en tiempo real.
 
 ---
 
-## 🔒 Seguridad
+### FASE 4 — Portal Web de Administración
+**Objetivo:** Portal unificado con Grafana embebido y gestión de usuarios.
 
-- **Autenticación:** Centralizada vía Active Directory (LDAP/S)
-- **Cifrado VPN:** TLS 1.2+ con certificados x509
-- **HTTPS:** Panel web y API con certificado válido (Let's Encrypt)
-- **Firewall:** iptables con política DROP por defecto, solo puertos necesarios
-- **Segmentación:** Red Docker interna aislada, AD solo accesible desde servicios autorizados
-- **Secrets:** Variables sensibles en `.env` (nunca en el repositorio)
+- [ ] Contenedor PHP + Apache + MySQL
+- [ ] Nginx proxy inverso con HTTPS
+- [ ] Login administrador con sesión segura
+- [ ] Dashboard con estado de servicios
+- [ ] Grafana embebido (iframe)
+- [ ] Crear/revocar usuarios AD desde web
+- [ ] Visor de logs
+- [ ] Estado de conexiones VPN
+
+**Entregable:** Portal accesible en https://pi con todas las secciones.
+
+---
+
+### FASE 5 — Bot de Telegram (Alertas + MFA + Comandos)
+**Objetivo:** Agente autónomo de seguridad con MFA doble chat.
+
+**5.1 — Infraestructura:**
+- [ ] Bot en @BotFather + token
+- [ ] Chat 1 (MFA privado) y Chat 2 (principal)
+- [ ] Contenedor Python
+
+**5.2 — Alertas autónomas:**
+- [ ] Contenedor caído → Chat 2
+- [ ] IP desconocida en VPN → Chat 2
+- [ ] Errores LDAP repetidos → Chat 2
+- [ ] Umbrales CPU/RAM/disco → Chat 2
+
+**5.3 — Sistema MFA:**
+- [ ] OTP 6 dígitos con expiración 90s
+- [ ] Envío automático a Chat 1
+- [ ] Validación y registro de intentos fallidos
+
+**5.4 — Comandos:**
+- [ ] /estado — Estado de servicios
+- [ ] /conexiones — Clientes VPN activos
+- [ ] /crearusuario (requiere MFA)
+- [ ] /revocar (requiere MFA)
+- [ ] /backup_now (requiere MFA)
+
+**Entregable:** Bot alerta automáticamente y ejecuta comandos solo tras MFA.
+
+---
+
+### FASE 6 — Seguridad
+**Objetivo:** Hardening completo del sistema.
+
+- [ ] Fail2Ban en Docker + notificación al bot
+- [ ] iptables con política DROP por defecto
+- [ ] Acceso LDAP solo desde contenedores autorizados
+- [ ] HTTPS en portal y OpenVPN
+- [ ] Verificar con nmap desde exterior
+
+**Entregable:** Solo puertos 443 y 1194 visibles. Fail2Ban activo.
+
+---
+
+### FASE 7 — Pruebas y documentación
+**Objetivo:** Validar sistema completo y preparar memoria del TFG.
+
+- [ ] Conectar 2-3 clientes simulando teletrabajo
+- [ ] Simular caída de contenedor → verificar alerta
+- [ ] Simular IP desconocida → verificar bloqueo
+- [ ] Probar flujo MFA completo
+- [ ] Medir consumo eléctrico
+- [ ] Diagrama de flujo de autenticación
+- [ ] Capturas de pantalla
+- [ ] Redactar memoria
+
+**Entregable:** Sistema documentado y listo para defensa.
 
 ---
 
@@ -318,53 +326,22 @@ GRAFANA_ADMIN_PASSWORD=grafanapass
 
 *Estimación a 0,12 €/kWh funcionando 24/7
 
-> La Raspberry Pi 5 supone un **ahorro del 80-95%** en consumo eléctrico frente a soluciones x86 equivalentes, manteniendo un rendimiento suficiente para un entorno empresarial de pequeña y mediana empresa.
-
----
-
-## 📚 Documentación Adicional
-
-- 📖 [Memoria del TFG](docs/memoria-tfg.pdf)
-- 🗺️ [Diagrama de red detallado](docs/diagramas/)
-- 📸 [Capturas del proyecto](docs/capturas/)
-- 🔧 [Guía de configuración avanzada](docs/configuracion-avanzada.md)
-
----
-
-## 🧰 Tecnologías y Herramientas de Referencia
-
-- [OpenVPN Access Server](https://openvpn.net/access-server/) — Servidor VPN
-- [Samba AD/DC](https://wiki.samba.org/index.php/Setting_up_Samba_as_an_Active_Directory_Domain_Controller) — Active Directory libre
-- [Grafana](https://grafana.com/) — Dashboards de monitorización
-- [Prometheus](https://prometheus.io/) — Recolección de métricas
-- [python-telegram-bot](https://python-telegram-bot.org/) — Librería para el bot
-- [Docker Docs](https://docs.docker.com/) — Documentación de Docker
-- [Let's Encrypt](https://letsencrypt.org/) — Certificados SSL gratuitos
-
 ---
 
 ## 👤 Autor
 
-**Nombre:** Tu Nombre Aquí  
-**Ciclo:** CFGS — Administración de Sistemas Informáticos en Red (ASIR) · 2º Curso  
-**Centro:** Nombre de tu Centro Educativo  
-**Tutor/a:** Nombre del Tutor/a  
-**Año:** 2024/2025  
+**Nombre:** Said Rais
+**Ciclo:** CFGS — ASIR · 2º Curso
+**Centro:** Nombre del Centro
+**Tutor/a:** Nombre del Tutor/a
+**Año:** 2024/2025
 
 ---
 
 ## 📄 Licencia
 
-Este proyecto está bajo la licencia **MIT** — consulta el archivo [LICENSE](LICENSE) para más detalles.
-
-Todos los componentes utilizados son software libre con sus respectivas licencias (GPL, Apache 2.0, MIT).
+MIT — Todos los componentes son software libre.
 
 ---
 
-<div align="center">
-
-**⭐ Si este proyecto te ha sido útil, ¡dale una estrella!**
-
 *Desarrollado con ❤️ sobre una Raspberry Pi 5*
-
-</div>
