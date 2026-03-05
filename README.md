@@ -110,7 +110,8 @@ Admin escribe /revocar usuario123  →  Chat 2 (principal)
 | **Portal Web** | PHP 8 + Apache + MySQL | Administración centralizada |
 | **Dashboards** | Grafana embebido en portal | Integrado, no duplicado |
 | **Métricas** | Prometheus + Node Exporter + cAdvisor | Sistema y contenedores |
-| **Bot** | Python + python-telegram-bot | Agente autónomo + MFA doble chat |
+| **Bot Empresa** | Python + python-telegram-bot | Alertas + comandos admin con MFA |
+| **Bot Soporte** | Python + python-telegram-bot | Alertas + lectura para soporte técnico |
 | **Seguridad** | Fail2Ban + iptables + HTTPS | Capas de protección |
 | **Certificados** | Let's Encrypt / Autofirmado | HTTPS en todos los servicios |
 | **Acceso Remoto** | Tailscale + ACLs + clave SSH | Mantenimiento remoto seguro |
@@ -265,11 +266,25 @@ TFG-OpenVPN/
 
 ### FASE 5 — Bot de Telegram (Alertas + MFA + Comandos)
 **Objetivo:** Agente autónomo de seguridad con MFA doble chat.
+Raspberry Pi
+      │
+      ├──► BOT 1 EMPRESA
+      │    Chat Principal  ──► alertas + comandos
+      │    Chat MFA        ──► códigos OTP
+      │
+      ├──► BOT 2 SOPORTE
+      │    Chat Soporte    ──► alertas + lectura
+      │
+      └──► BOT 3 MFA ──► canal OTP privado
+           (técnicamente es el Chat MFA del Bot 1)
 
 **5.1 — Infraestructura:**
 - [ ] Bot en @BotFather + token
 - [ ] Chat 1 (MFA privado) y Chat 2 (principal)
 - [ ] Contenedor Python
+- [ ] Crear Bot Soporte en @BotFather (solo lectura, sin comandos críticos)
+- [ ] Configurar reenvío de alertas críticas al Bot Soporte
+- [ ] Verificar que Bot Soporte NO puede ejecutar comandos administrativos
 
 **5.2 — Alertas autónomas:**
 - [ ] Contenedor caído → Chat 2
