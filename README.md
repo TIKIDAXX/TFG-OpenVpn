@@ -61,13 +61,11 @@ El sistema simula un entorno real de teletrabajo corporativo con:
  
        │
        ▼
-  ┌─────────────────────────────────────┐
-  │  BOT 1 — Empresa                   │
+┌─────────────────────────────────────┐
+  │  BOT único con sistema de roles    │
   │  Chat 1 — MFA / Códigos OTP        │ ← Canal privado admin
-  │  Chat 2 — Alertas + Comandos       │ ← Canal operacional
-  ├─────────────────────────────────────┤
-  │  BOT 2 — Soporte técnico           │
-  │  Chat 3 — Alertas + Lectura        │ ← Solo para soporte
+  │  Chat 2 — Alertas + Comandos       │ ← Rol ADMIN (MFA requerido)
+  │  Chat 3 — Solo lectura alertas     │ ← Rol SOPORTE (sin comandos)
   └─────────────────────────────────────┘
        │
        ▼
@@ -114,13 +112,13 @@ Admin escribe /revocar usuario123  →  Chat 2 (principal)
 | **Portal Web** | PHP 8 + Apache + MySQL | Administración centralizada |
 | **Dashboards** | Grafana embebido en portal | Integrado, no duplicado |
 | **Métricas** | Prometheus + Node Exporter + cAdvisor | Sistema y contenedores |
-| **Bot Empresa** | Python + python-telegram-bot | Alertas + comandos admin con MFA |
-| **Bot Soporte** | Python + python-telegram-bot | Alertas + lectura para soporte técnico |
+| **Bot Telegram** | Python + python-telegram-bot | Bot único con roles: ADMIN (alertas + comandos + MFA) y SOPORTE (solo lectura) |
 | **Seguridad** | Fail2Ban + iptables + HTTPS | Capas de protección |
-| **Certificados** | Let's Encrypt / Autofirmado | HTTPS en todos los servicios |
+| **Certificados** | Autofirmados (OpenSSL) | HTTPS en todos los servicios |
 | **Acceso Remoto** | Tailscale + ACLs + clave SSH | Mantenimiento remoto seguro |
 | **Logs** | Loki + Promtail | Agregación y consulta de logs de contenedores |
-
+> ⚠️ Se usan certificados autofirmados al estar desplegado en red local.
+> En producción real se usaría Let's Encrypt con dominio público.
 ---
 
 ## 📁 Estructura del Repositorio
@@ -281,12 +279,12 @@ TFG-OpenVPN/
 **Objetivo:** Agente autónomo de seguridad con MFA doble chat.
 
 **5.1 — Infraestructura:**
-- [ ] Crear Bot Empresa en @BotFather + obtener token
-- [ ] Crear Bot Soporte en @BotFather + obtener token
-- [ ] Configurar Chat 1 (MFA/OTP privado) y Chat 2 (principal) para Bot Empresa
-- [ ] Configurar Chat 3 (soporte) para Bot Soporte
-- [ ] Contenedor Python con ambos bots
-- [ ] Verificar que Bot Soporte NO puede ejecutar comandos administrativos
+- [ ] Crear Bot único en @BotFather + obtener token
+- [ ] Configurar Chat 1 (MFA/OTP privado)
+- [ ] Configurar Chat 2 (principal — rol ADMIN)
+- [ ] Configurar Chat 3 (soporte — rol SOPORTE, solo lectura)
+- [ ] Contenedor Python con sistema de roles
+- [ ] Verificar que rol SOPORTE NO puede ejecutar comandos administrativos
 
 **5.2 — Alertas autónomas:**
 - [ ] Contenedor caído → Chat 2
@@ -395,7 +393,8 @@ de forma segura mediante **Tailscale**, sin necesidad de abrir puertos en el rou
 | Servidor rack 1U | ~150-300W | ~130-260 € |
 
 *Estimación a 0,12 €/kWh funcionando 24/7
-
+> ⚠️ Se recomienda Raspberry Pi 5 con 8GB RAM para este stack completo.
+> Consumo estimado de RAM en reposo: ~3-4GB entre todos los servicios.
 ## 🔌 APIs Utilizadas
 
 | API | Tecnología | Uso principal |
