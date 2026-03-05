@@ -195,10 +195,15 @@ TFG-OpenVPN/
 - [ ] Actualizar el sistema
 - [ ] Instalar Docker + Docker Compose
 - [ ] Configurar acceso SSH
+- [ ] Instalar y configurar Tailscale en la Pi
+- [ ] Activar 2FA en cuenta Tailscale
+- [ ] Configurar ACLs restrictivas (solo tu dispositivo)
+- [ ] Desactivar login SSH por contraseña (solo clave pública)
+- [ ] Verificar acceso remoto desde exterior
 - [ ] Clonar repositorio y crear estructura de carpetas
 - [ ] Configurar archivo `.env`
 
-**Entregable:** `docker compose ps` funciona sin errores.
+**Entregable:** `docker compose ps` funciona sin errores y acceso SSH remoto verificado vía Tailscale.
 
 ---
 
