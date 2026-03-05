@@ -60,11 +60,14 @@ El sistema simula un entorno real de teletrabajo corporativo con:
   - Estado servicios
        │
        ▼
-  Bot Telegram (Python)
-  ┌─────────────────────────────────┐
-  │  CHAT 1 — MFA / Códigos OTP    │ ← Canal privado admin
-  │  CHAT 2 — Alertas + Comandos   │ ← Canal operacional
-  └─────────────────────────────────┘
+  ┌─────────────────────────────────────┐
+  │  BOT 1 — Empresa                   │
+  │  Chat 1 — MFA / Códigos OTP        │ ← Canal privado admin
+  │  Chat 2 — Alertas + Comandos       │ ← Canal operacional
+  ├─────────────────────────────────────┤
+  │  BOT 2 — Soporte técnico           │
+  │  Chat 3 — Alertas + Lectura        │ ← Solo para soporte
+  └─────────────────────────────────────┘
        │
        ▼
   Fail2Ban (Docker)
@@ -266,25 +269,13 @@ TFG-OpenVPN/
 
 ### FASE 5 — Bot de Telegram (Alertas + MFA + Comandos)
 **Objetivo:** Agente autónomo de seguridad con MFA doble chat.
-```
-Raspberry Pi
-      │
-      ├──► BOT 1 EMPRESA
-      │    Chat Principal  ──► alertas + comandos
-      │    Chat MFA        ──► códigos OTP
-      │
-      ├──► BOT 2 SOPORTE
-      │    Chat Soporte    ──► alertas + lectura
-      │
-      └──► BOT 3 MFA ──► canal OTP privado
-           (técnicamente es el Chat MFA del Bot 1)
-```
+
 **5.1 — Infraestructura:**
-- [ ] Bot en @BotFather + token
-- [ ] Chat 1 (MFA privado) y Chat 2 (principal)
-- [ ] Contenedor Python
-- [ ] Crear Bot Soporte en @BotFather (solo lectura, sin comandos críticos)
-- [ ] Configurar reenvío de alertas críticas al Bot Soporte
+- [ ] Crear Bot Empresa en @BotFather + obtener token
+- [ ] Crear Bot Soporte en @BotFather + obtener token
+- [ ] Configurar Chat 1 (MFA/OTP privado) y Chat 2 (principal) para Bot Empresa
+- [ ] Configurar Chat 3 (soporte) para Bot Soporte
+- [ ] Contenedor Python con ambos bots
 - [ ] Verificar que Bot Soporte NO puede ejecutar comandos administrativos
 
 **5.2 — Alertas autónomas:**
