@@ -55,9 +55,10 @@ El sistema simula un entorno real de teletrabajo corporativo con:
   Portal Web Admin            Prometheus + Grafana
   (PHP + MySQL)                (Docker, Pi5)
   - Grafana embebido            Puerto 9090 / 3000
-  - Crear/revocar usuarios
+  - Crear/revocar usuarios      Loki + Promtail(Docker, Pi5)Puerto 3100
   - Logs centralizados
   - Estado servicios
+ 
        │
        ▼
   ┌─────────────────────────────────────┐
@@ -118,6 +119,7 @@ Admin escribe /revocar usuario123  →  Chat 2 (principal)
 | **Seguridad** | Fail2Ban + iptables + HTTPS | Capas de protección |
 | **Certificados** | Let's Encrypt / Autofirmado | HTTPS en todos los servicios |
 | **Acceso Remoto** | Tailscale + ACLs + clave SSH | Mantenimiento remoto seguro |
+| **Logs** | Loki + Promtail | Agregación y consulta de logs de contenedores |
 
 ---
 
@@ -152,6 +154,10 @@ TFG-OpenVPN/
 │           ├── system.json
 │           ├── containers.json
 │           └── vpn.json
+|       ├── loki/
+│            └── loki-config.yml
+|       └── promtail/
+|              └── promtail-config.yml
 ├── bot-telegram/
 │   ├── Dockerfile
 │   ├── requirements.txt
@@ -244,6 +250,9 @@ TFG-OpenVPN/
 - [ ] Node Exporter (métricas Pi)
 - [ ] cAdvisor (métricas contenedores)
 - [ ] Grafana con datasource Prometheus
+- [ ] Loki como datasource de logs en Grafana
+- [ ] Promtail recogiendo logs de todos los contenedores
+- [ ] Dashboard de logs VPN en Grafana
 - [ ] Dashboards: sistema, contenedores, VPN
 - [ ] Alertas para umbrales críticos
 
@@ -260,7 +269,8 @@ TFG-OpenVPN/
 - [ ] Dashboard con estado de servicios
 - [ ] Grafana embebido (iframe)
 - [ ] Crear/revocar usuarios AD desde web
-- [ ] Visor de logs
+- [ ] Visor de logs rápido (logs.php — tail/grep sobre logs del sistema)
+- [ ] Dashboard avanzado de logs embebido desde Loki + Grafana
 - [ ] Estado de conexiones VPN
 
 **Entregable:** Portal accesible en https://pi con todas las secciones.
