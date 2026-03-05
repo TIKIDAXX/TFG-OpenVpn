@@ -396,14 +396,27 @@ de forma segura mediante **Tailscale**, sin necesidad de abrir puertos en el rou
 
 *Estimación a 0,12 €/kWh funcionando 24/7
 
+## 🔌 APIs Utilizadas
+
+| API | Tecnología | Uso principal |
+|-----|-----------|---------------|
+| **Telegram Bot API** | REST/HTTPS | Alertas, comandos admin y MFA |
+| **Prometheus HTTP API** | REST/HTTP | Consulta de métricas desde el portal |
+| **Grafana HTTP API** | REST/HTTP | Gestión de dashboards y alertas |
+| **Loki HTTP API** | REST/HTTP | Consulta de logs desde portal y Grafana |
+| **OpenVPN Management Interface** | TCP Socket | Estado de conexiones y revocación de clientes |
+| **LDAP API** | python-ldap | Gestión de usuarios contra Active Directory |
+| **Docker Engine API** | REST/Unix Socket | Estado y gestión de contenedores |
+
+> 💡 Las APIs internas (Prometheus, Loki, Docker socket) nunca se exponen al exterior,
+> toda comunicación ocurre dentro de la red privada de Docker (>SEGURIDAD).
 ---
 
 ## 👤 Autor
 
 **Nombre:** Said Rais
 **Ciclo:** CFGS — ASIR · 2º Curso
-**Centro:** Nombre del Centro
-**Tutor/a:** Nombre del Tutor/a
+**Centro:** IES ISABEL DE VILLENA
 **Año:** 2024/2025
 
 ---
