@@ -113,6 +113,7 @@ Admin escribe /revocar usuario123  →  Chat 2 (principal)
 | **Bot** | Python + python-telegram-bot | Agente autónomo + MFA doble chat |
 | **Seguridad** | Fail2Ban + iptables + HTTPS | Capas de protección |
 | **Certificados** | Let's Encrypt / Autofirmado | HTTPS en todos los servicios |
+| **Acceso Remoto** | Tailscale + ACLs + clave SSH | Mantenimiento remoto seguro |
 
 ---
 
@@ -315,6 +316,53 @@ TFG-OpenVPN/
 **Entregable:** Sistema documentado y listo para defensa.
 
 ---
+## 🛠️ Acceso Remoto de Mantenimiento (Tailscale)
+
+En caso de incidencia, el administrador puede conectarse remotamente a la Raspberry Pi
+de forma segura mediante **Tailscale**, sin necesidad de abrir puertos en el router del cliente.
+```
+[Administrador]
+  │  clave privada SSH + 2FA Tailscale
+  ▼
+[Tailscale ACL]  ←── solo dispositivo autorizado
+  ▼
+[Raspberry Pi]
+  │  SSH solo por clave pública
+  ▼
+[Acceso concedido ✅]
+```
+
+### 🔐 Capas de seguridad
+
+| Capa | Mecanismo | Protege contra |
+|------|-----------|----------------|
+| **1** | ACLs Tailscale estrictas | Acceso desde otros dispositivos de la red |
+| **2** | SSH solo con clave pública | Acceso por contraseña comprometida |
+| **3** | 2FA en cuenta Tailscale | Robo de credenciales Tailscale |
+| **4** | Logs de auditoría Tailscale SSH | Trazabilidad de cada sesión |
+
+> 🔒 Aunque alguien comprometa la cuenta Tailscale, sin la clave privada SSH no puede acceder a ninguna Raspberry Pi.
+
+---
+
+## 📋 Líneas Futuras
+
+### Corto plazo
+- Backups automáticos en la nube (Google Drive / S3)
+- Renovación automática de certificados SSL con Certbot
+- Actualizaciones automáticas de seguridad con `unattended-upgrades`
+
+### Medio plazo
+- 2FA propio en el portal web de administración
+- Alertas por email como canal secundario (respaldo del bot)
+- Dashboard de auditoría de accesos AD en Grafana
+
+### Largo plazo
+- Migración a clúster **K3s** con múltiples nodos Raspberry Pi
+- VPN **Site-to-Site** entre sedes físicas
+- Implementación de modelo **Zero Trust (ZTNA)**
+- IDS/IPS con **Suricata** para análisis de tráfico VPN
+- SIEM básico con **Wazuh** para correlación de eventos
 
 ## ⚡ Eficiencia Energética
 
