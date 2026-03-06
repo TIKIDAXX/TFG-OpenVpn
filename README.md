@@ -130,6 +130,7 @@ Admin escribe /revocar usuario123  →  Chat 2 (principal)
 - El acceso al portal requiere MFA para roles ADMIN y SUBADMIN
 - El código OTP se envía al Chat 1 de Telegram al iniciar sesión
 - Sin validar el OTP no se accede al portal aunque la contraseña sea correcta
+- Al crear una cuenta SUBADMIN, se fuerza cambio de contraseña en el primer acceso
 ---
 ## 🛠️ Stack Tecnológico
 
@@ -306,7 +307,10 @@ TFG-OpenVPN/
 - [ ] Estado de conexiones VPN
 - [ ] MFA obligatorio para login de ADMIN y SUBADMIN via Telegram OTP
 - [ ] SOPORTE accede solo con usuario y contraseña
-
+- [ ] Bloqueo de cuenta tras 5 intentos fallidos + notificación al bot
+- [ ] Log de accesos al portal (usuario, IP, hora, MFA)
+- [ ] Notificación al bot en cada login con usuario, IP y rol
+- [ ] Forzar cambio de contraseña en primer acceso SUBADMIN
 ---
 
 ## 💡 Cómo funcionará el login MFA del portal
@@ -319,7 +323,29 @@ Usuario entra usuario+password →
                 OTP inválido/expirado → acceso denegado ❌
     ¿Es SOPORTE? →
         Acceso directo sin MFA ✅
+```
+## 🔒 Seguridad del Portal Web
 
+### Protección contra ataques de fuerza bruta
+- Bloqueo de cuenta tras 5 intentos fallidos de login
+- Notificación inmediata al bot de Telegram cuando una cuenta es bloqueada
+- El ADMIN puede desbloquear cuentas desde el portal
+
+### Log de accesos
+- Cada login queda registrado con: usuario, IP, hora, resultado y si usó MFA
+- Visible únicamente para el rol ADMIN
+- Los intentos fallidos también quedan registrados
+
+### Notificaciones de login
+- El bot notifica al ADMIN cada vez que alguien inicia sesión en el portal
+- La notificación incluye: usuario, IP, hora y rol
+- Si el login es fallido también se notifica
+
+### Primer acceso SUBADMIN
+- Al crear una cuenta SUBADMIN se genera una contraseña temporal
+- En el primer acceso se fuerza el cambio de contraseña obligatoriamente
+- Sin cambiar la contraseña no se puede acceder al portal
+- 
 **Entregable:** Portal accesible en https://pi con todas las secciones.
 
 ---
