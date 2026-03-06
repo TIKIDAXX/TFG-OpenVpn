@@ -17,7 +17,7 @@ Esta fase no levanta ningun contenedor, solo prepara la base sobre la que constr
 - [ ] Sistema actualizado
 - [ ] Docker + Docker Compose instalados
 - [ ] Clave SSH copiada a la Pi
-- [ ] Login por contrasena SSH deshabilitado
+- [ ] Login por contraseña SSH deshabilitado
 - [ ] Tailscale instalado y vinculado a tu cuenta
 - [ ] 2FA activado en Tailscale
 - [ ] IP Forwarding habilitado
@@ -31,7 +31,7 @@ Esta fase no levanta ningun contenedor, solo prepara la base sobre la que constr
 
 ### PASO 1 — Clonar el repositorio en la Pi
 
-Conectate a la Pi por SSH con tu contrasena (aun funciona):
+Conectate a la Pi por SSH con tu contraseña (aun funciona):
 
 ```bash
 ssh pi@<IP_DE_TU_PI>
@@ -77,15 +77,15 @@ ssh-keygen -t ed25519 -C "tfg-openvpn"
 
 # Copiar la clave publica a la Pi
 ssh-copy-id pi@<IP_DE_TU_PI>
-# Te pedira la contrasena de la Pi por ULTIMA vez
+# Te pedira la contraseña de la Pi por ULTIMA vez
 
-# Verificar que funciona sin contrasena
+# Verificar que funciona sin contraseña
 ssh pi@<IP_DE_TU_PI>
-# Debe entrar directamente sin pedir contrasena
+# Debe entrar directamente sin pedir contraseña
 ```
 
-> IMPORTANTE: Verifica que entras sin contrasena ANTES de continuar.
-> El setup.sh ya desactivo el login por contrasena.
+> IMPORTANTE: Verifica que entras sin contraseña ANTES de continuar.
+> El setup.sh ya desactivo el login por contraseña.
 > Si no copiaste la clave antes, tendras que acceder fisicamente a la Pi.
 
 ---
