@@ -98,9 +98,36 @@ Admin escribe /revocar usuario123  →  Chat 2 (principal)
         Confirma en       en logs de seguridad
         Chat 2
 ```
-
 ---
+## 👥 Roles del Portal Web
 
+| Rol | Acceso | Caducidad |
+|-----|--------|----------|
+| **ADMIN** | Acceso total sin restricciones | Sin caducidad |
+| **SUBADMIN** | Acceso limitado, sin datos sensibles | Máximo 7 días |
+| **SOPORTE** | Solo lectura del estado | Sin caducidad |
+
+### Permisos detallados
+
+| Sección del portal | ADMIN | SUBADMIN | SOPORTE |
+|-------------------|-------|---------|---------|
+| Estado servicios | ✅ | ✅ | ✅ |
+| Conexiones VPN activas | ✅ | ✅ | ✅ |
+| Logs básicos | ✅ | ✅ | ✅ |
+| Grafana embebido | ✅ | ✅ | ✅ |
+| Crear/revocar usuarios AD | ✅ | ❌ | ❌ |
+| Credenciales y configuración | ✅ | ❌ | ❌ |
+| Backups | ✅ | ❌ | ❌ |
+| Logs de seguridad completos | ✅ | ❌ | ❌ |
+| Crear cuentas SUBADMIN | ✅ | ❌ | ❌ |
+
+### Funcionamiento del SUBADMIN
+
+- El ADMIN crea la cuenta desde el portal con fecha de caducidad (máx. 7 días)
+- Al expirar, la cuenta se desactiva automáticamente
+- El bot de Telegram notifica al ADMIN cuando una cuenta expira
+- Las cuentas SUBADMIN no tienen acceso al bot de Telegram
+---
 ## 🛠️ Stack Tecnológico
 
 | Categoría | Tecnología | Notas |
@@ -264,12 +291,17 @@ TFG-OpenVPN/
 - [ ] Contenedor PHP + Apache + MySQL
 - [ ] Nginx proxy inverso con HTTPS
 - [ ] Login administrador con sesión segura
+- [ ] Sistema de roles: ADMIN, SUBADMIN y SOPORTE
+- [ ] Creación de cuentas SUBADMIN con caducidad configurable (máx. 7 días)
+- [ ] Desactivación automática al expirar
+- [ ] Notificación al bot cuando una cuenta SUBADMIN expira
 - [ ] Dashboard con estado de servicios
 - [ ] Grafana embebido (iframe)
 - [ ] Crear/revocar usuarios AD desde web
 - [ ] Visor de logs rápido (logs.php — tail/grep sobre logs del sistema)
 - [ ] Dashboard avanzado de logs embebido desde Loki + Grafana
 - [ ] Estado de conexiones VPN
+
 
 **Entregable:** Portal accesible en https://pi con todas las secciones.
 
