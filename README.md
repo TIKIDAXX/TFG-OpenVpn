@@ -103,9 +103,9 @@ Admin escribe /revocar usuario123  →  Chat 2 (principal)
 
 | Rol | Acceso | Caducidad |
 |-----|--------|----------|
-| **ADMIN** | Acceso total sin restricciones | Sin caducidad |
-| **SUBADMIN** | Acceso limitado, sin datos sensibles | Máximo 7 días |
-| **SOPORTE** | Solo lectura del estado | Sin caducidad |
+| **ADMIN** | Acceso total sin restricciones | Sin caducidad | MFA obligatorio |
+| **SUBADMIN** | Acceso limitado, sin datos sensibles | Máximo 15 días | MFA obligatorio |
+| **SOPORTE** | Solo lectura del estado | Sin caducidad | Sin MFA |
 
 ### Permisos detallados
 
@@ -127,6 +127,9 @@ Admin escribe /revocar usuario123  →  Chat 2 (principal)
 - Al expirar, la cuenta se desactiva automáticamente
 - El bot de Telegram notifica al ADMIN cuando una cuenta expira
 - Las cuentas SUBADMIN no tienen acceso al bot de Telegram
+- El acceso al portal requiere MFA para roles ADMIN y SUBADMIN
+- El código OTP se envía al Chat 1 de Telegram al iniciar sesión
+- Sin validar el OTP no se accede al portal aunque la contraseña sea correcta
 ---
 ## 🛠️ Stack Tecnológico
 
@@ -301,7 +304,21 @@ TFG-OpenVPN/
 - [ ] Visor de logs rápido (logs.php — tail/grep sobre logs del sistema)
 - [ ] Dashboard avanzado de logs embebido desde Loki + Grafana
 - [ ] Estado de conexiones VPN
+- [ ] MFA obligatorio para login de ADMIN y SUBADMIN via Telegram OTP
+- [ ] SOPORTE accede solo con usuario y contraseña
 
+---
+
+## 💡 Cómo funcionará el login MFA del portal
+```
+Usuario entra usuario+password → 
+    ¿Es ADMIN o SUBADMIN? → 
+        Bot envía OTP al Chat 1 de Telegram →
+            Usuario introduce OTP en el portal →
+                OTP válido → acceso concedido ✅
+                OTP inválido/expirado → acceso denegado ❌
+    ¿Es SOPORTE? →
+        Acceso directo sin MFA ✅
 
 **Entregable:** Portal accesible en https://pi con todas las secciones.
 
