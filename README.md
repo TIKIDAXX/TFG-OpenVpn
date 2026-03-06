@@ -448,7 +448,7 @@ de forma segura mediante **Tailscale**, sin necesidad de abrir puertos en el rou
 **Nombre:** Said Rais
 **Ciclo:** CFGS — ASIR · 2º Curso
 **Centro:** IES ISABEL DE VILLENA
-**Año:** 2024/2025
+**Año:** 2025/2026
 
 ---
 
@@ -456,6 +456,4 @@ de forma segura mediante **Tailscale**, sin necesidad de abrir puertos en el rou
 
 MIT — Todos los componentes son software libre.
 
----
 
-*Desarrollado con ❤️ sobre una Raspberry Pi 5*
