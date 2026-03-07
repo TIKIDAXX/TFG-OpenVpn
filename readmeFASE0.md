@@ -15,7 +15,7 @@ Esta fase no levanta ningun contenedor, solo prepara la base sobre la que constr
 
 ```
 PC Windows          Raspberry Pi 5
-(192.168.1.x)  →   (192.168.1.140)
+(192.168.1.x)  →   (192.168.x)
 SSH con clave       tfg-openvpn-pi
 publica             Docker + Firewall
 ```
@@ -43,7 +43,7 @@ publica             Docker + Firewall
 Conectarse a la Pi por SSH con contrasena (aun funciona en este punto):
 
 ```bash
-ssh alumno@192.168.1.140
+ssh alumno@192.168.1.x
 ```
 
 Clonar el repositorio:
@@ -134,12 +134,12 @@ ssh-keygen -t ed25519 -C "tfg-openvpn"
 
 **En tu PC Windows — copiar clave a la Pi:**
 ```powershell
-type C:\Users\hapme\.ssh\id_ed25519.pub | ssh alumno@192.168.1.140 "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys && chmod 700 ~/.ssh && chmod 600 ~/.ssh/authorized_keys"
+type C:\Users\username\.ssh\id_ed25519.pub | ssh user@192.168.1.x "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys && chmod 700 ~/.ssh && chmod 600 ~/.ssh/authorized_keys"
 ```
 
 **Verificar que funciona sin contrasena:**
 ```powershell
-ssh alumno@192.168.1.140
+ssh user@192.168.1.x
 # Debe entrar directamente sin pedir contrasena
 ```
 
@@ -171,9 +171,9 @@ nano .env
 
 Rellena con tus valores reales. Variables que puedes rellenar ahora:
 ```env
-AD_HOST=10.0.0.10
+AD_HOST=x.x.x.x
 AD_PORT=389
-AD_BASE_DN=dc=domainsaid,dc=internal
+AD_BASE_DN=dc=domain,dc=internal
 MYSQL_ROOT_PASSWORD=<password seguro>
 MYSQL_DATABASE=panelvpn
 MYSQL_USER=paneluser
