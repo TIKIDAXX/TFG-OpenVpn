@@ -146,7 +146,7 @@ Admin escribe /revocar usuario123  →  Chat 2 (principal)
 | **Bot Telegram** | Python + python-telegram-bot | Bot único con roles: ADMIN (alertas + comandos + MFA) y SOPORTE (solo lectura) |
 | **Seguridad** | Fail2Ban + iptables + HTTPS | Capas de protección |
 | **Certificados** | Autofirmados (OpenSSL) | HTTPS en todos los servicios |
-| **Acceso Remoto** | Tailscale + ACLs + clave SSH | Mantenimiento remoto seguro |
+| **Acceso Remoto** | Raspberry Pi Connect | Mantenimiento remoto seguro |
 | **Logs** | Loki + Promtail | Agregación y consulta de logs de contenedores |
 > ⚠️ Se usan certificados autofirmados al estar desplegado en red local.
 > En producción real se usaría Let's Encrypt con dominio público.
@@ -234,15 +234,13 @@ TFG-OpenVPN/
 - [ ] Actualizar el sistema
 - [ ] Instalar Docker + Docker Compose
 - [ ] Configurar acceso SSH
-- [ ] Instalar y configurar Tailscale en la Pi
-- [ ] Activar 2FA en cuenta Tailscale
 - [ ] Configurar ACLs restrictivas (solo tu dispositivo)
 - [ ] Desactivar login SSH por contraseña (solo clave pública)
 - [ ] Verificar acceso remoto desde exterior
 - [ ] Clonar repositorio y crear estructura de carpetas
 - [ ] Configurar archivo `.env`
 
-**Entregable:** `docker compose ps` funciona sin errores y acceso SSH remoto verificado vía Tailscale.
+**Entregable:** `docker compose ps` funciona sin errores y acceso SSH remoto
 
 ---
 
@@ -411,32 +409,21 @@ Usuario entra usuario+password →
 **Entregable:** Sistema documentado y listo para defensa.
 
 ---
-## 🛠️ Acceso Remoto de Mantenimiento (Tailscale)
+## 🛠️ Acceso Remoto de Mantenimiento (Raspberry Pi Connect)
 
-En caso de incidencia, el administrador puede conectarse remotamente a la Raspberry Pi
-de forma segura mediante **Tailscale**, sin necesidad de abrir puertos en el router del cliente.
-```
-[Administrador]
-  │  clave privada SSH + 2FA Tailscale
-  ▼
-[Tailscale ACL]  ←── solo dispositivo autorizado
-  ▼
-[Raspberry Pi]
-  │  SSH solo por clave pública
-  ▼
-[Acceso concedido ✅]
-```
+El administrador accede remotamente a la Raspberry Pi mediante
+Raspberry Pi Connect, sin configuraciones adicionales ni software extra.
 
 ### 🔐 Capas de seguridad
 
 | Capa | Mecanismo | Protege contra |
 |------|-----------|----------------|
-| **1** | ACLs Tailscale estrictas | Acceso desde otros dispositivos de la red |
-| **2** | SSH solo con clave pública | Acceso por contraseña comprometida |
-| **3** | 2FA en cuenta Tailscale | Robo de credenciales Tailscale |
-| **4** | Logs de auditoría Tailscale SSH | Trazabilidad de cada sesión |
+| **1** | Cuenta Raspberry Pi con 2FA | Acceso no autorizado |
+| **2** | Conexión cifrada end-to-end | Intercepción de tráfico |
+| **3** | Firewall DROP por defecto | Puertos no autorizados |
 
-> 🔒 Aunque alguien comprometa la cuenta Tailscale, sin la clave privada SSH no puede acceder a ninguna Raspberry Pi.
+> ⚠️ Raspberry Pi Connect requiere conexión a internet para funcionar.
+> Para acceso en red local usar: ssh pi@<IP_LOCAL>
 
 ---
 
