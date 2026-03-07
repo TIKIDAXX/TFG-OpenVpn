@@ -2,7 +2,7 @@
 # =============================================================
 # TFG-OpenVPN — Fase 0: Setup inicial Raspberry Pi 5
 # Autor: Said Rais
-# Descripcion: Prepara la Pi con Docker, dependencias y Tailscale
+# Descripcion: Prepara la Pi con Docker, dependencias
 # =============================================================
 
 set -e
@@ -64,14 +64,6 @@ else
     log "Docker Compose instalado"
 fi
 
-info "Instalando Tailscale..."
-if command -v tailscale &> /dev/null; then
-    warn "Tailscale ya instalado"
-else
-    curl -fsSL https://tailscale.com/install.sh | sh
-    systemctl enable tailscaled && systemctl start tailscaled
-    log "Tailscale instalado"
-fi
 
 info "Configurando SSH seguro..."
 SSHD_CONFIG="/etc/ssh/sshd_config"
@@ -99,16 +91,11 @@ echo "  Verificacion del entorno"
 echo "================================================"
 command -v docker &> /dev/null && echo "  Docker:         OK - $(docker --version)" || echo "  Docker:         NO INSTALADO"
 command -v docker-compose &> /dev/null && echo "  Docker Compose: OK" || echo "  Docker Compose: NO INSTALADO"
-command -v tailscale &> /dev/null && echo "  Tailscale:      OK - Instalado" || echo "  Tailscale:      NO INSTALADO"
 [ "$(cat /proc/sys/net/ipv4/ip_forward)" = "1" ] && echo "  IP Forwarding:  OK - Habilitado" || echo "  IP Forwarding:  DESHABILITADO"
 echo "================================================"
 echo ""
 echo "[OK] Setup completado. Pasos manuales que quedan:"
-echo "  1. En tu PC: ssh-copy-id pi@<IP_PI>"
-echo "  2. Verifica sin contrasena: ssh pi@<IP_PI>"
-echo "  3. En la Pi: sudo tailscale up --ssh"
-echo "  4. Abre la URL que aparece en el navegador y vincula la Pi"
-echo "  5. Activa 2FA en https://login.tailscale.com"
-echo "  6. Copia el .env: cp .env.example .env && nano .env"
-echo "  7. Aplica firewall: sudo bash scripts/firewall.sh"
+echo "  1. Copia el .env: cp .env.example .env && nano .env"
+echo "  2. Aplica firewall: sudo bash scripts/firewall.sh"
 echo ""
+
