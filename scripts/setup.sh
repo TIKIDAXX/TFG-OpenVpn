@@ -37,7 +37,6 @@ info "Instalando dependencias..."
 apt-get install -y -qq \
     curl wget git vim htop net-tools ldap-utils \
     ca-certificates gnupg lsb-release \
-    apt-transport-https software-properties-common \
     openssl nmap iptables iptables-persistent
 log "Dependencias instaladas"
 

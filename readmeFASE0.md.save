@@ -1,0 +1,95 @@
+En la Pi:
+```bash
+cd /opt/tfg-openvpn
+cp .env.example .env
+nano .env
+```
+
+Rellena con tus valores reales:
+```
+AD_HOST=<IP de tu maquina con Active Directory>
+AD_PORT=389
+AD_BASE_DN=dc=empresa,dc=local
+AD_BIND_USER=cn=vpnbind,ou=serviceaccounts,dc=empresa,dc=local
+AD_BIND_PASS=<tu password>
+
+OPENVPN_HOSTNAME=<IP o dominio de la Pi>
+OPENVPN_PORT=1194
+
+MYSQL_ROOT_PASSWORD=<password seguro>
+MYSQL_DATABASE=panelvpn
+MYSQL_USER=paneluser
+MYSQL_PASSWORD=<password seguro>
+
+TELEGRAM_BOT_TOKEN=<token de BotFather>
+TELEGRAM_CHAT_MAIN=<ID del chat principal>
+TELEGRAM_CHAT_MFA=<ID del chat MFA>
+
+GRAFANA_ADMIN_USER=admin
+GRAFANA_ADMIN_PASSWORD=<password seguro>
+```
+
+Guarda con Ctrl+X → Y → Enter
+
+---
+
+### PASO 7 — Aplicar firewall basico
+
+```bash
+chmod +x scripts/firewall.sh
+sudo bash scripts/firewall.sh
+```
+
+---
+
+### PASO 8 — Verificacion final
+
+```bash
+# Docker funcionando
+docker ps
+
+# Docker Compose disponible
+docker compose version
+
+# Tailscale conectado
+tailscale status
+
+# IP Forwarding activo (debe devolver 1)
+cat /proc/sys/net/ipv4/ip_forward
+
+# Firewall activo
+sudo iptables -L -n
+```
+
+---
+
+## Problemas encontrados y soluciones
+
+| Problema | Causa | Solucion |
+|---------|-------|---------|
+| - | - | - |
+
+> Esta tabla se rellena durante la implementacion real
+
+---
+
+## Archivos de esta fase
+
+```
+scripts/
+├── setup.sh      — Instalacion automatica de dependencias
+└── firewall.sh   — Reglas iptables basicas
+readme-fase0.md   — Este archivo
+```
+
+---
+
+## Siguiente fase
+
+**Fase 1 — Active Directory externo**
+- Verificar conectividad LDAP desde la Pi con ldapsearch
+- Documentar OUs, grupos y usuarios de prueba
+
+---
+
+*Fase 0 — TFG-OpenVPN · Said Rais · 2024/2025*
