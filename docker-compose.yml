@@ -1,0 +1,281 @@
+#version: '3.8'
+
+# =============================================================
+# TFG-OpenVPN — Docker Compose
+# Autor: Said Rais
+# Descripcion: Orquestacion completa del stack
+# =============================================================
+
+networks:
+  vpn-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24
+
+volumes:
+  mysql-data:
+  prometheus-data:
+  grafana-data:
+  loki-data:
+  openvpn-data:
+
+
+services:
+
+  # ── OpenVPN ─────────────────────────────────────────────────
+  openvpn:
+    privileged: true
+    build: ./openvpn
+    container_name: openvpn
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun
+    ports:
+      - "${OPENVPN_PORT:-1194}:1194/udp"
+      - "${OPENVPN_TCP_PORT:-443}:443/tcp"
+    volumes:
+      - openvpn-data:/etc/openvpn
+      - ./openvpn/config:/etc/openvpn/config
+      - ./openvpn/scripts:/etc/openvpn/scripts:ro
+    environment:
+      - AD_HOST=${AD_HOST}
+      - AD_PORT=${AD_PORT}
+      - AD_BASE_DN=${AD_BASE_DN}
+      - AD_BIND_USER=${AD_BIND_USER}
+      - AD_BIND_PASS=${AD_BIND_PASS}
+      - AD_VPN_GROUP=${AD_VPN_GROUP}
+      - OPENVPN_NETWORK=${OPENVPN_NETWORK}
+      - OPENVPN_SUBNET=${OPENVPN_SUBNET}
+      - OPENVPN_DNS1=${OPENVPN_DNS1}
+      - OPENVPN_DNS2=${OPENVPN_DNS2}
+      - OPENVPN_MGMT_PORT=${OPENVPN_MGMT_PORT}
+    networks:
+      - vpn-net
+    sysctls:
+      - net.ipv4.ip_forward=1
+
+  # ── MySQL ────────────────────────────────────────────────────
+  mysql:
+    image: mysql:8.0
+    container_name: mysql
+    restart: unless-stopped
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - vpn-net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Portal Web ───────────────────────────────────────────────
+  portal-web:
+    build: ./portal-web
+    container_name: portal-web
+    restart: unless-stopped
+    environment:
+      - MYSQL_HOST=${MYSQL_HOST}
+      - MYSQL_PORT=${MYSQL_PORT}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - AD_HOST=${AD_HOST}
+      - AD_PORT=${AD_PORT}
+      - AD_BASE_DN=${AD_BASE_DN}
+      - AD_BIND_USER=${AD_BIND_USER}
+      - AD_BIND_PASS=${AD_BIND_PASS}
+      - GRAFANA_URL=${GRAFANA_URL}
+      - PORTAL_SESSION_SECRET=${PORTAL_SESSION_SECRET}
+      - PORTAL_ADMIN_USER=${PORTAL_ADMIN_USER}
+      - PORTAL_ADMIN_PASSWORD=${PORTAL_ADMIN_PASSWORD}
+      - OPENVPN_MGMT_PORT=${OPENVPN_MGMT_PORT}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_MFA=${TELEGRAM_CHAT_MFA}
+    volumes:
+      - ./portal-web/src:/var/www/html:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - vpn-net
+
+  # ── Nginx ────────────────────────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    container_name: nginx
+    restart: unless-stopped
+    ports:
+      - "${NGINX_HTTP_PORT:-80}:80"
+      - "${NGINX_HTTPS_PORT:-443}:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+    depends_on:
+      - portal-web
+    networks:
+      - vpn-net
+
+  # ── Prometheus ───────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    restart: unless-stopped
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=${PROMETHEUS_RETENTION:-15d}'
+    networks:
+      - vpn-net
+
+  # ── Node Exporter ────────────────────────────────────────────
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    restart: unless-stopped
+    pid: host
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    networks:
+      - vpn-net
+
+  # ── cAdvisor ─────────────────────────────────────────────────
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: cadvisor
+    restart: unless-stopped
+    privileged: true
+    devices:
+      - /dev/kmsg
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
+    networks:
+      - vpn-net
+
+  # ── Grafana ──────────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
+      - GF_SECURITY_ALLOW_EMBEDDING=${GRAFANA_ALLOW_EMBEDDING:-true}
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+    depends_on:
+      - prometheus
+      - loki
+    networks:
+      - vpn-net
+
+  # ── Loki ─────────────────────────────────────────────────────
+  loki:
+    image: grafana/loki:latest
+    container_name: loki
+    restart: unless-stopped
+    ports:
+      - "${LOKI_PORT:-3100}:3100"
+    volumes:
+      - ./monitoring/loki/loki-config.yml:/etc/loki/local-config.yaml:ro
+      - loki-data:/loki
+    networks:
+      - vpn-net
+
+  # ── Promtail ─────────────────────────────────────────────────
+  promtail:
+    image: grafana/promtail:latest
+    container_name: promtail
+    restart: unless-stopped
+    volumes:
+      - ./monitoring/promtail/promtail-config.yml:/etc/promtail/config.yml:ro
+      - /var/log:/var/log:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    depends_on:
+      - loki
+    networks:
+      - vpn-net
+
+  # ── Bot Telegram ─────────────────────────────────────────────
+  bot-telegram:
+    build: ./bot-telegram
+    container_name: bot-telegram
+    restart: unless-stopped
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_MAIN=${TELEGRAM_CHAT_MAIN}
+      - TELEGRAM_CHAT_MFA=${TELEGRAM_CHAT_MFA}
+      - TELEGRAM_CHAT_SOPORTE=${TELEGRAM_CHAT_SOPORTE}
+      - TELEGRAM_ADMIN_IDS=${TELEGRAM_ADMIN_IDS}
+      - TELEGRAM_SOPORTE_IDS=${TELEGRAM_SOPORTE_IDS}
+      - OTP_EXPIRY_SECONDS=${OTP_EXPIRY_SECONDS}
+      - OTP_LENGTH=${OTP_LENGTH}
+      - AD_HOST=${AD_HOST}
+      - AD_PORT=${AD_PORT}
+      - AD_BASE_DN=${AD_BASE_DN}
+      - AD_BIND_USER=${AD_BIND_USER}
+      - AD_BIND_PASS=${AD_BIND_PASS}
+      - MYSQL_HOST=${MYSQL_HOST}
+      - MYSQL_PORT=${MYSQL_PORT}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - ALERT_CPU_THRESHOLD=${ALERT_CPU_THRESHOLD}
+      - ALERT_RAM_THRESHOLD=${ALERT_RAM_THRESHOLD}
+      - ALERT_DISK_THRESHOLD=${ALERT_DISK_THRESHOLD}
+      - ALERT_CHECK_INTERVAL=${ALERT_CHECK_INTERVAL}
+      - OPENVPN_MGMT_PORT=${OPENVPN_MGMT_PORT}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - mysql
+      - openvpn
+    networks:
+      - vpn-net
+
+  # ── Fail2Ban ─────────────────────────────────────────────────
+  fail2ban:
+    build: ./fail2ban
+    container_name: fail2ban
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_MAIN=${TELEGRAM_CHAT_MAIN}
+      - FAIL2BAN_MAXRETRY=${FAIL2BAN_MAXRETRY}
+      - FAIL2BAN_BANTIME=${FAIL2BAN_BANTIME}
+      - FAIL2BAN_FINDTIME=${FAIL2BAN_FINDTIME}
+    volumes:
+      - ./fail2ban/jail.local:/etc/fail2ban/jail.local:ro
+      - /var/log:/var/log:ro
+    network_mode: host
