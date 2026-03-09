@@ -1,0 +1,45 @@
+# =============================================================
+# TFG-OpenVPN — Prometheus Configuration
+# Autor: Said Rais
+# =============================================================
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  scrape_timeout: 10s
+
+# ── Reglas de alertas ────────────────────────────────────────
+rule_files:
+  - "alerts/*.yml"
+
+# ── Scrape configs ───────────────────────────────────────────
+scrape_configs:
+
+  # Prometheus se monitoriza a si mismo
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Metricas del sistema (Raspberry Pi)
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'tfg-openvpn-pi'
+
+  # Metricas de contenedores Docker
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+
+  # Metricas OpenVPN (via node-exporter textfile)
+  - job_name: 'openvpn'
+    static_configs:
+      - targets: ['node-exporter:9100']
+    metrics_path: '/metrics'
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'openvpn'

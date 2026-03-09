@@ -1,0 +1,17 @@
+# =============================================================
+# TFG-OpenVPN — Grafana Dashboards Provisioning
+# Autor: Said Rais
+# =============================================================
+
+apiVersion: 1
+
+providers:
+  - name: 'TFG-OpenVPN'
+    orgId: 1
+    folder: 'TFG-OpenVPN'
+    type: file
+    disableDeletion: false
+    editable: true
+    updateIntervalSeconds: 30
+    options:
+      path: /etc/grafana/provisioning/dashboards

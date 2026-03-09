@@ -1,1 +1,60 @@
+# =============================================================
+# TFG-OpenVPN — Promtail Configuration
+# Autor: Said Rais
+# =============================================================
 
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+
+  # ── Logs del sistema ─────────────────────────────────────────
+  - job_name: system
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: syslog
+          host: tfg-openvpn-pi
+          __path__: /var/log/syslog
+
+  # ── Logs de autenticacion SSH ────────────────────────────────
+  - job_name: auth
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: auth
+          host: tfg-openvpn-pi
+          __path__: /var/log/auth.log
+
+  # ── Logs de todos los contenedores Docker ────────────────────
+  - job_name: docker
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+    relabel_configs:
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/(.*)'
+        target_label: 'container'
+      - source_labels: ['__meta_docker_container_log_stream']
+        target_label: 'logstream'
+      - source_labels: ['__meta_docker_container_label_com_docker_compose_service']
+        target_label: 'service'
+
+  # ── Logs de OpenVPN ──────────────────────────────────────────
+  - job_name: openvpn
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: openvpn
+          host: tfg-openvpn-pi
+          __path__: /var/log/openvpn/*.log

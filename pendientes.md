@@ -1,6 +1,6 @@
 # 📋 Lista de Pendientes — TFG-OpenVPN
 
-> Actualizado tras Fase 2 — Said Rais · 2024/2025
+> Actualizado tras Fase 3 — Said Rais · 2024/2025
 
 ---
 
@@ -8,7 +8,6 @@
 
 | Tarea | Fase | Motivo |
 |-------|------|--------|
-| Eliminar `version: '3.8'` del docker-compose.yml | 2 | Deprecado en Docker Compose v2 |
 | Generar archivo .ovpn para cliente | 2 | Necesario para probar VPN |
 
 ---
@@ -17,7 +16,7 @@
 
 | Tarea | Fase | Motivo |
 |-------|------|--------|
-| Probar conexion cliente OpenVPN real | 2 | Necesita estar en LAN + puertos router |
+| Probar conexion cliente OpenVPN real | 2 | Necesita estar en LAN |
 | Verificar autenticacion con aula1/aula2 | 2 | Necesita cliente conectado |
 | Abrir puerto 1194 UDP en el router | 2 | Para acceso externo |
 
@@ -28,7 +27,7 @@
 | Tarea | Fase | Motivo |
 |-------|------|--------|
 | Parar contenedor OpenLDAP temporal | 1 | Ya no necesario |
-| Crear OUs y grupos en Samba AD/DC | 1 | Estructura real del AD |
+| Crear OUs y grupos en Samba AD/DC real | 1 | Estructura real del AD |
 | Actualizar .env con IP real del AD | 1 | AD_HOST=10.0.0.10 |
 | Verificar ldapsearch con AD real | 1 | Confirmar conectividad |
 | Verificar autenticacion VPN con AD real | 2 | Plugin LDAP apuntando al AD |
@@ -73,6 +72,16 @@
 | Plugin LDAP cargado | 2 |
 | Red VPN 10.8.0.0/24 activa | 2 |
 | Puerto 1194 UDP escuchando | 2 |
+| Prometheus healthy | 3 |
+| Node Exporter metricas sistema | 3 |
+| cAdvisor metricas contenedores | 3 |
+| Grafana accesible | 3 |
+| Datasources Prometheus y Loki | 3 |
+| Loki recibiendo logs | 3 |
+| Promtail detectando contenedores | 3 |
+| Dashboard sistema ID 1860 | 3 |
+| Dashboard contenedores ID 15798 | 3 |
+| Dashboard logs custom Loki | 3 |
 
 ---
 
@@ -80,12 +89,11 @@
 
 | Fase | Contenido | Estado |
 |------|-----------|--------|
-| Fase 3 | Prometheus + Grafana + Loki | 🔜 Siguiente |
-| Fase 4 | Portal Web PHP + MySQL + Nginx | ⏳ Pendiente |
+| Fase 4 | Portal Web PHP + MySQL + Nginx | 🔜 Siguiente |
 | Fase 5 | Bot Telegram + MFA | ⏳ Pendiente |
 | Fase 6 | Seguridad + Fail2Ban + Hardening | ⏳ Pendiente |
 | Fase 7 | Pruebas + Memoria | ⏳ Pendiente |
 
 ---
 
-*Actualizado: Fase 2 completada — TFG-OpenVPN · Said Rais · 2024/2025*
+*Actualizado: Fase 3 completada — TFG-OpenVPN · Said Rais · 2024/2025*
