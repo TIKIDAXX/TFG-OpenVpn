@@ -20,21 +20,24 @@ Raspberry Pi 5          Maquina AD externa
                         domainsaid.internal
 ```
 
+> ⚠️ Durante esta fase el AD real no estaba disponible. Se uso un contenedor
+> OpenLDAP temporal para verificar la conectividad y estructura LDAP.
+> Cuando el AD real este disponible solo hay que actualizar el .env.
+
 ---
 
 ## Checklist
 
-- [ ] Grupos creados en el AD (vpnusers, vpnadmins)
-- [ ] OU de grupos creada en el AD
-- [ ] OU de cuentas de servicio creada en el AD
-- [ ] Usuario de servicio vpnbind creado
-- [ ] Usuarios de prueba añadidos a vpnusers
-- [ ] Ping desde Pi al AD funcionando
-- [ ] Puerto 389 accesible desde la Pi
-- [ ] ldapsearch devuelve usuarios correctamente
-- [ ] ldapsearch verifica grupo vpnusers con miembros
-- [ ] ldapsearch verifica grupo vpnadmins con miembros
-- [ ] .env actualizado con datos reales del AD
+- [x] Grupos creados en el AD (vpnusers, vpnadmins)
+- [x] OU de grupos creada
+- [x] OU de cuentas de servicio creada
+- [x] Usuario de servicio vpnbind creado
+- [x] Usuarios de prueba añadidos a vpnusers (aula1, aula2)
+- [x] Puerto 389 accesible desde la Pi
+- [x] ldapsearch devuelve usuarios correctamente
+- [x] ldapsearch verifica grupo vpnusers con miembros
+- [x] ldapsearch verifica grupo vpnadmins con miembros
+- [ ] .env actualizado con datos reales del AD ← pendiente con AD real
 
 ---
 
@@ -43,106 +46,181 @@ Raspberry Pi 5          Maquina AD externa
 ```
 dc=domainsaid,dc=internal
 ├── OU=Groups
-│   ├── cn=vpnusers       ← Usuarios con acceso a VPN
-│   └── cn=vpnadmins      ← Administradores de la VPN
-└── OU=ServiceAccounts
-    └── cn=vpnbind        ← Usuario de servicio para LDAP bind
+│   ├── cn=vpnusers       ← aula1, aula2 tienen acceso VPN
+│   └── cn=vpnadmins      ← aula1 es administrador VPN
+├── OU=ServiceAccounts
+│   └── cn=vpnbind        ← Usuario de servicio para LDAP bind
+└── OU=Users
+    ├── cn=aula1          ← Usuario de prueba 1
+    └── cn=aula2          ← Usuario de prueba 2
 ```
 
 ---
 
 ## Pasos de implementacion
 
-### PASO 1 — Crear estructura en el AD
+### PASO 1 — OpenLDAP temporal en Docker
 
-Ejecutar en la maquina con Samba AD/DC:
+Como el AD real no estaba disponible, levantamos un contenedor OpenLDAP
+para simular el entorno y verificar la conectividad LDAP.
 
 ```bash
-# Crear OU para grupos
-samba-tool ou create "OU=Groups,DC=domainsaid,DC=internal"
+# Crear docker-compose temporal
+cat > /tmp/ldap-test.yml << 'EOF2'
+version: '3'
+services:
+  openldap:
+    image: osixia/openldap:latest
+    container_name: openldap-test
+    environment:
+      LDAP_ORGANISATION: "domainsaid"
+      LDAP_DOMAIN: "domainsaid.internal"
+      LDAP_ADMIN_PASSWORD: "Cambiame123"
+      LDAP_BASE_DN: "dc=domainsaid,dc=internal"
+    ports:
+      - "389:389"
+    networks:
+      - ldap-test
+networks:
+  ldap-test:
+    driver: bridge
+EOF2
 
-# Crear OU para cuentas de servicio
-samba-tool ou create "OU=ServiceAccounts,DC=domainsaid,DC=internal"
-
-# Crear grupo de usuarios VPN
-samba-tool group add vpnusers \
-    --groupou="OU=Groups,DC=domainsaid,DC=internal" \
-    --description="Usuarios con acceso a VPN"
-
-# Crear grupo de administradores VPN
-samba-tool group add vpnadmins \
-    --groupou="OU=Groups,DC=domainsaid,DC=internal" \
-    --description="Administradores de la VPN"
-
-# Crear usuario de servicio para LDAP bind
-samba-tool user create vpnbind Cambiame123 \
-    --userou="OU=ServiceAccounts,DC=domainsaid,DC=internal" \
-    --description="Usuario de servicio para autenticacion LDAP"
-
-# Añadir usuarios de prueba al grupo vpnusers
-samba-tool group addmembers vpnusers <nombre_usuario>
-
-# Añadir administrador al grupo vpnadmins
-samba-tool group addmembers vpnadmins <nombre_usuario>
+# Levantar contenedor
+docker compose -f /tmp/ldap-test.yml up -d
+sleep 10
+docker ps | grep openldap
 ```
 
 ---
 
-### PASO 2 — Verificar conectividad desde la Pi
-
-Ejecutar en la Raspberry Pi:
+### PASO 2 — Crear estructura LDAP
 
 ```bash
-# Verificar que la Pi llega al AD
-ping -c 4 10.0.0.10
+# Crear archivo con OUs, grupos y usuarios
+cat > /tmp/estructura.ldif << 'EOF2'
+dn: ou=Groups,dc=domainsaid,dc=internal
+objectClass: organizationalUnit
+ou: Groups
 
-# Verificar puerto LDAP abierto
-nc -zv 10.0.0.10 389
+dn: ou=ServiceAccounts,dc=domainsaid,dc=internal
+objectClass: organizationalUnit
+ou: ServiceAccounts
+
+dn: ou=Users,dc=domainsaid,dc=internal
+objectClass: organizationalUnit
+ou: Users
+
+dn: cn=vpnusers,ou=Groups,dc=domainsaid,dc=internal
+objectClass: groupOfNames
+cn: vpnusers
+description: Usuarios con acceso a VPN
+member: cn=aula1,ou=Users,dc=domainsaid,dc=internal
+member: cn=aula2,ou=Users,dc=domainsaid,dc=internal
+
+dn: cn=vpnadmins,ou=Groups,dc=domainsaid,dc=internal
+objectClass: groupOfNames
+cn: vpnadmins
+description: Administradores de la VPN
+member: cn=aula1,ou=Users,dc=domainsaid,dc=internal
+
+dn: cn=vpnbind,ou=ServiceAccounts,dc=domainsaid,dc=internal
+objectClass: inetOrgPerson
+cn: vpnbind
+sn: vpnbind
+userPassword: Cambiame123
+description: Usuario de servicio para autenticacion LDAP
+
+dn: cn=aula1,ou=Users,dc=domainsaid,dc=internal
+objectClass: inetOrgPerson
+cn: aula1
+sn: aula1
+userPassword: Aula1pass123
+mail: aula1@domainsaid.internal
+
+dn: cn=aula2,ou=Users,dc=domainsaid,dc=internal
+objectClass: inetOrgPerson
+cn: aula2
+sn: aula2
+userPassword: Aula2pass123
+mail: aula2@domainsaid.internal
+EOF2
+
+# Copiar e importar dentro del contenedor
+docker cp /tmp/estructura.ldif openldap-test:/tmp/estructura.ldif
+docker exec openldap-test ldapadd \
+    -x \
+    -H ldap://localhost \
+    -D "cn=admin,dc=domainsaid,dc=internal" \
+    -w "Cambiame123" \
+    -f /tmp/estructura.ldif
 ```
 
 ---
 
-### PASO 3 — Verificar LDAP con ldapsearch
+### PASO 3 — Dar permisos de lectura a vpnbind
 
 ```bash
-# Buscar todos los usuarios del dominio
-ldapsearch -x \
-    -H ldap://10.0.0.10 \
-    -D "cn=vpnbind,ou=ServiceAccounts,dc=domainsaid,dc=internal" \
-    -w "Cambiame123" \
-    -b "dc=domainsaid,dc=internal" \
-    "(objectClass=user)" \
-    cn sAMAccountName memberOf
+# Crear ACL para vpnbind
+cat > /tmp/acl.ldif << 'EOF2'
+dn: olcDatabase={1}mdb,cn=config
+changetype: modify
+add: olcAccess
+olcAccess: {0}to * by dn="cn=vpnbind,ou=ServiceAccounts,dc=domainsaid,dc=internal" read by * none
+EOF2
 
-# Verificar grupo vpnusers y sus miembros
-ldapsearch -x \
-    -H ldap://10.0.0.10 \
-    -D "cn=vpnbind,ou=ServiceAccounts,dc=domainsaid,dc=internal" \
-    -w "Cambiame123" \
-    -b "dc=domainsaid,dc=internal" \
-    "(cn=vpnusers)" \
-    member
-
-# Verificar grupo vpnadmins y sus miembros
-ldapsearch -x \
-    -H ldap://10.0.0.10 \
-    -D "cn=vpnbind,ou=ServiceAccounts,dc=domainsaid,dc=internal" \
-    -w "Cambiame123" \
-    -b "dc=domainsaid,dc=internal" \
-    "(cn=vpnadmins)" \
-    member
-```
-
-Resultado esperado — debe devolver entradas como:
-```
-dn: CN=usuario1,OU=Users,DC=domainsaid,DC=internal
-cn: usuario1
-sAMAccountName: usuario1
+# Aplicar ACL
+docker cp /tmp/acl.ldif openldap-test:/tmp/acl.ldif
+docker exec openldap-test ldapmodify \
+    -Y EXTERNAL \
+    -H ldapi:/// \
+    -f /tmp/acl.ldif
 ```
 
 ---
 
-### PASO 4 — Actualizar el .env
+### PASO 4 — Verificar conectividad
+
+```bash
+# Puerto LDAP accesible
+nc -zv localhost 389
+
+# Ver toda la estructura
+ldapsearch -x \
+    -H ldap://localhost \
+    -D "cn=admin,dc=domainsaid,dc=internal" \
+    -w "Cambiame123" \
+    -b "dc=domainsaid,dc=internal" \
+    "(objectClass=*)" dn
+
+# Verificar usuarios
+ldapsearch -x \
+    -H ldap://localhost \
+    -D "cn=admin,dc=domainsaid,dc=internal" \
+    -w "Cambiame123" \
+    -b "dc=domainsaid,dc=internal" \
+    "(objectClass=inetOrgPerson)" cn mail
+
+# Verificar grupo vpnusers
+ldapsearch -x \
+    -H ldap://localhost \
+    -D "cn=admin,dc=domainsaid,dc=internal" \
+    -w "Cambiame123" \
+    -b "dc=domainsaid,dc=internal" \
+    "(cn=vpnusers)" member
+
+# Verificar grupo vpnadmins
+ldapsearch -x \
+    -H ldap://localhost \
+    -D "cn=admin,dc=domainsaid,dc=internal" \
+    -w "Cambiame123" \
+    -b "dc=domainsaid,dc=internal" \
+    "(cn=vpnadmins)" member
+```
+
+---
+
+### PASO 5 — Actualizar el .env
 
 ```bash
 nano /opt/tfg-openvpn/.env
@@ -160,15 +238,11 @@ AD_ADMIN_GROUP=cn=vpnadmins,ou=Groups,dc=domainsaid,dc=internal
 
 ---
 
-## Verificacion final
+### PASO 6 — Parar contenedor temporal
 
-| Prueba | Comando | Resultado esperado |
-|--------|---------|-------------------|
-| Conectividad | `ping -c 4 10.0.0.10` | 0% perdida |
-| Puerto LDAP | `nc -zv 10.0.0.10 389` | succeeded |
-| Usuarios AD | `ldapsearch (objectClass=user)` | Lista de usuarios |
-| Grupo vpnusers | `ldapsearch (cn=vpnusers)` | Muestra miembros |
-| Grupo vpnadmins | `ldapsearch (cn=vpnadmins)` | Muestra miembros |
+```bash
+docker compose -f /tmp/ldap-test.yml down
+```
 
 ---
 
@@ -176,9 +250,47 @@ AD_ADMIN_GROUP=cn=vpnadmins,ou=Groups,dc=domainsaid,dc=internal
 
 | Problema | Causa | Solucion |
 |---------|-------|---------|
-| - | - | - |
+| AD real no disponible | Maquina AD apagada | Usar contenedor OpenLDAP temporal para verificar conectividad |
+| `Permission denied` al crear estructura.ldif | Archivo creado sin permisos correctos | `docker cp` para copiar el archivo dentro del contenedor |
+| `ldap_bind: Invalid credentials (49)` con vpnbind | Password de vpnbind no hasheado correctamente por OpenLDAP | Usar admin para las busquedas en el entorno de prueba |
+| vpnbind no tenia permisos de lectura | OpenLDAP por defecto no da permisos a usuarios no admin | Aplicar ACL con `ldapmodify -Y EXTERNAL` |
+| `cn=admin,cn=config` da credenciales invalidas | OpenLDAP no expone config por LDAP simple | Usar `-Y EXTERNAL -H ldapi:///` para modificar configuracion |
 
-> Esta tabla se rellena durante la implementacion real
+---
+
+## Resultado de la verificacion
+
+```
+# Puerto 389
+Connection to localhost 389 port [tcp/ldap] succeeded!
+
+# Estructura completa
+dn: dc=domainsaid,dc=internal
+dn: ou=Groups,dc=domainsaid,dc=internal
+dn: ou=ServiceAccounts,dc=domainsaid,dc=internal
+dn: ou=Users,dc=domainsaid,dc=internal
+dn: cn=vpnusers,ou=Groups,dc=domainsaid,dc=internal
+dn: cn=vpnadmins,ou=Groups,dc=domainsaid,dc=internal
+dn: cn=vpnbind,ou=ServiceAccounts,dc=domainsaid,dc=internal
+dn: cn=aula1,ou=Users,dc=domainsaid,dc=internal
+dn: cn=aula2,ou=Users,dc=domainsaid,dc=internal
+```
+
+---
+
+## Estado al finalizar la fase
+
+| Componente | Estado |
+|-----------|--------|
+| Contenedor OpenLDAP temporal | ✅ |
+| OUs creadas correctamente | ✅ |
+| Grupo vpnusers con aula1 y aula2 | ✅ |
+| Grupo vpnadmins con aula1 | ✅ |
+| Usuario vpnbind creado | ✅ |
+| Puerto 389 accesible | ✅ |
+| ldapsearch funciona | ✅ |
+| AD real verificado | 🔄 Pendiente |
+| .env actualizado con AD real | 🔄 Pendiente |
 
 ---
 
@@ -200,10 +312,10 @@ AD_ADMIN_GROUP=cn=vpnadmins,ou=Groups,dc=domainsaid,dc=internal
 
 ```
 readme-fase1.md   — Este archivo
+/tmp/ldap-test.yml      — Docker compose OpenLDAP temporal (no subir al repo)
+/tmp/estructura.ldif    — Estructura LDAP de prueba (no subir al repo)
+/tmp/acl.ldif           — ACL para vpnbind (no subir al repo)
 ```
-
-No se generan archivos nuevos en esta fase.
-Todo es configuracion del AD y verificacion de conectividad.
 
 ---
 
